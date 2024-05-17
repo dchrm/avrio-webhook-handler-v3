@@ -1,0 +1,17 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AzureWebJobsFeatureFlags": "EnableWorkerIndexing",
+    "KARBON_BEARER_TOKEN": "",
+    "KARBON_ACCESS_KEY": "",
+    "ASKNICELY_API_KEY": "",
+    "APPINSIGHTS_INSTRUMENTATIONKEY": "",
+    "AZURE_LOGIC_APP_HANDLER": "",
+    "FUNCTIONS_EXTENSION_VERSION": "~4",
+    "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "",
+    "WEBSITE_CONTENTSHARE": "",
+    "WEBSITES_ENABLE_APP_SERVICE_STORAGE": "false"
+  }
+}
