@@ -1,7 +1,7 @@
 import datetime
 from datetime import timezone, timedelta
 from services.karbon_services import Entities
-from helpers.send_contacts_to_asknicely import get_contact_information_and_send_surveys_to_asknicely as nps
+from task_functions.send_contacts_to_asknicely import get_contact_information_and_send_surveys_to_asknicely as nps
 import logging
 import os
 # from dotenv import load_dotenv
