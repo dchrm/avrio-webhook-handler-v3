@@ -103,15 +103,15 @@ def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, k
 
         # send survey survye trigger to asknicely
         logging.info("Send request to AskNicely to trigger NPS survey.")
-        AskNicelyAPI(asknicely_api_key).send_business_card(
-            first_name,last_name,email,
-            work_item_details['ClientName'],
-            work_item_details['ClientKey'],
-            work_item_details['ClientType'],
-            work_item_details['Title'],
-            work_item_details['WorkItemKey'],
-            work_item_details['WorkType']
-        )
+        # AskNicelyAPI(asknicely_api_key).send_business_card(
+        #     first_name,last_name,email,
+        #     work_item_details['ClientName'],
+        #     work_item_details['ClientKey'],
+        #     work_item_details['ClientType'],
+        #     work_item_details['Title'],
+        #     work_item_details['WorkItemKey'],
+        #     work_item_details['WorkType']
+        # )
 
         # add note to appropriate timelines about the NPS survey.
         logging.info("Sending request to Karbon to add not to timelines.")

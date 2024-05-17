@@ -29,7 +29,7 @@ def work_item_handler(data, karbon_bearer_token, karbon_access_key):
     work_item_status = work_item_details['PrimaryStatus']
     work_item_type = work_item_details['WorkType']
     eligible_work_types = [
-        'Tax: Processing',
+        # 'Tax: Processing',
         'Internal'
     ]
     logging.info('Checking if work item is eligible for Net Promoter Score (NPS)')
@@ -64,28 +64,5 @@ def work_item_handler(data, karbon_bearer_token, karbon_access_key):
 
 # use for testing
 if __name__ == "__main__":
-    
     # imports for test
     import os
-    from dotenv import load_dotenv
-    import json
-
-    # Load the correct environmental variables
-    env = os.environ.get('ENVIRONMENT', 'test')
-    dotenv_path = f".env.{env}"
-    load_dotenv(dotenv_path=dotenv_path)
-
-    # get asknicely api key
-    asknicely_api_key = os.getenv('ASKNICELY_API_KEY')
-
-    # Get Karbon api keys from environmental variables.
-    karbon_access_key = os.getenv('KARBON_ACCESS_KEY')
-    karbon_bearer_token = os.getenv('KARBON_BEARER_TOKEN')
-
-    webhook_data = {
-        "ResourcePermaKey": "2RbhPrHfNgRY",
-        "ResourceType": "WorkItem",
-        "ActionType": "Updated"
-    }
-
-    work_item_handler(webhook_data,karbon_bearer_token,karbon_access_key,asknicely_api_key)

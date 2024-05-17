@@ -40,10 +40,10 @@ async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse("Not a recognized webhook.", status_code=400)
 
     # Start webhook processing asynchronously
-    asyncio.create_task(webhook_processor(req_body))
+    await webhook_processor(req_body)
 
     # Return the response immediately and log the response details
-    response = func.HttpResponse("Request received, processing in the background.", status_code=202, headers={"Content-Type": "application/json"})
+    response = func.HttpResponse(status_code=202, headers={"Content-Type": "application/json"})
     logging.info(f"Response Status Code: {response.status_code}")
     logging.info(f"Response Headers: {response.headers}")
     return response
