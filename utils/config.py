@@ -1,0 +1,2 @@
+# AskNicely settings
+ask_nicely_minutes_delay=1440
