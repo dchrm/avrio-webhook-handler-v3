@@ -62,11 +62,13 @@ async def webhook_processor(req) -> None:
 async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Main Handler - Python HTTP trigger function processed a request.')
 
-    # Start webhook processing asynchronously
-    await webhook_processor(req)
-
-    # Return the response immediately and log the response details
-    response = func.HttpResponse("Webhook accepted", status_code=202, headers={"Content-Type": "application/json"})
-    logging.info(f"Response Status Code: {response.status_code}")
-    logging.info(f"Response Headers: {response.headers}")
-    return response
+    try:
+        # Start webhook processing asynchronously
+        logging.info("Trying to send to webhook processor.")
+        await webhook_processor(req)
+        response = func.HttpResponse("Webhook accepted", status_code=202, headers={"Content-Type": "application/json"})
+        logging.info(f"Response Status Code: {response.status_code}")
+        logging.info(f"Response Headers: {response.headers}")
+        return response
+    except Exception as e:
+        logging.error(f"Failed to start webhook_processor with error: {e}")    
