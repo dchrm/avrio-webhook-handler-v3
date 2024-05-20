@@ -6,6 +6,7 @@
     "AzureWebJobsFeatureFlags": "EnableWorkerIndexing",
     "KARBON_BEARER_TOKEN": "",
     "KARBON_ACCESS_KEY": "",
+    "KARBON_TENANT_KEY": "",
     "ASKNICELY_API_KEY": "",
     "APPINSIGHTS_INSTRUMENTATIONKEY": "",
     "AZURE_LOGIC_APP_HANDLER": "",

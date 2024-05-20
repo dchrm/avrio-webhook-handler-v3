@@ -14,9 +14,7 @@ azure_logic_app_handler_url = os.getenv('AZURE_LOGIC_APP_HANDLER')
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
-@app.route(route="MainWebhookHandler")
-async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Main Handler - Python HTTP trigger function processed a request.')
+async def webhook_processor(req) -> None:
 
     # Log the request headers and body
     logging.info(f"Request Headers: {req.headers}")
@@ -29,7 +27,6 @@ async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
         logging.info(f"Parsed Request Body: {req_body}")
     except ValueError:
         logging.error("Main Handler - Invalid JSON received.")
-        return func.HttpResponse("Invalid JSON", status_code=400)
     
     # Process the webhook if it's valid for Karbon
     logging.info("Main Handler - Checking to see if webhook is from Karbon.")
@@ -37,18 +34,7 @@ async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
         logging.info("Main Handler - Webhook appears to be from Karbon.")
     else:
         logging.info("Main Handler - Request did not qualify as a Karbon webhook.")
-        return func.HttpResponse("Not a recognized webhook.", status_code=400)
 
-    # Start webhook processing asynchronously
-    await webhook_processor(req_body)
-
-    # Return the response immediately and log the response details
-    response = func.HttpResponse(status_code=202, headers={"Content-Type": "application/json"})
-    logging.info(f"Response Status Code: {response.status_code}")
-    logging.info(f"Response Headers: {response.headers}")
-    return response
-
-async def webhook_processor(req_body) -> None:
     resource_type = req_body.get('ResourceType')
     logging.info(f"Main Handler - Handling {resource_type} event.")
 
@@ -70,4 +56,17 @@ async def webhook_processor(req_body) -> None:
         handler_function(req_body, karbon_bearer_token, karbon_access_key)
         logging.info(f"Main Handler - {resource_type} event processed successfully.")
     except Exception as e:
-        logging.error(f"Main Handler - Error processing the {resource_type} event: {str(e)}", exc_info=True)
+        logging.error(f"Main Handler - Error processing the {resource_type} event: {str(e)}", exc_info=True)    
+
+@app.route(route="MainWebhookHandler")
+async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Main Handler - Python HTTP trigger function processed a request.')
+
+    # Start webhook processing asynchronously
+    await webhook_processor(req)
+
+    # Return the response immediately and log the response details
+    response = func.HttpResponse(status_code=202, headers={"Content-Type": "application/json"})
+    logging.info(f"Response Status Code: {response.status_code}")
+    logging.info(f"Response Headers: {response.headers}")
+    return response

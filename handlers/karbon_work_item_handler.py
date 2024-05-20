@@ -1,6 +1,6 @@
 import datetime
 from datetime import timezone, timedelta
-from services.karbon_services import Entities
+from services.karbon_services import Entities, Notes
 from task_functions.send_contacts_to_asknicely import get_contact_information_and_send_surveys_to_asknicely as nps
 import logging
 import os
@@ -9,13 +9,94 @@ from utils.logging_config import setup_logging
 
 # apply logging config file
 setup_logging()
+try: # try getting Karbon Tenant Key from environment variables.
+    logging.info("Try to get the Karbon Tenant from environment variables.")
+    karbon_tenant_key = os.getenv('KARBON_TENANT_KEY')
+    logging.info("Successfully aquired Karbon Tenant Key from environtment variables.")
+except Exception as e: # log any errors.
+    logging.error(f"Failed to get Karbon Tenant Key with error: {e}")
 
-def work_item_handler(data, karbon_bearer_token, karbon_access_key):
+now = datetime.datetime.now(timezone.utc)
 
-    # logging.info('Attempt to load environment.')
-    # # Load the correct environmental variables
-    # load_dotenv('..env')
-    # logging.info(f"Loaded envirtonment at path: {dotenv_path}")
+def handle_null_work(work_item_details, karbon_bearer_token, karbon_access_key) -> None:
+    logging.info("Request to handle null work type received.")
+
+    # set values from supplied data.
+    work_item_title = work_item_details['Title']
+    work_item_key = work_item_details['WorkItemKey']
+    note_assignee = work_item_details['AssigneeEmailAddress']
+    note_timelines = [{"EntityType": "WorkItem", "EntityKey": f"{work_item_key}"}]
+
+    # Use timezone-aware datetime.
+    note_todo_datetime = now
+    note_due_datetime = now
+
+    note_subject = "URGENT: This work item does not have a work type"
+    note_body = f"""
+    <p>{work_item_title} does not have a work type. Please update the work type.</p><br>
+    <p>Link: <a href='https://app2.karbonhq.com/{karbon_tennant_key}#/work/basic-details/{work_item_key}'>Work Item Details</a></p>
+    """
+
+    try:
+        logging.info("Trying to send note to Karbon.")
+        result = Notes(karbon_bearer_token,karbon_access_key).add_note(note_subject,note_body,note_timelines,note_assignee,note_todo_datetime,note_due_datetime)
+        logging.info(f"Successfully sent note to work item. Response: {result}")
+    except Exception as e:
+        logging.error(f"Failed to add note with error: {e}")
+
+def handle_cascading_work(work_item_details, karbon_bearer_token, karbon_access_key) -> None:
+    logging.info("Request to handle cascading work item received.")
+
+    dict_of_next_work = {
+        'incoming work type': {'NextWorkTitle': 'example next work item title', 'NextWorkTemplateKey': 'next work template key'},
+        'incoming work type2': {'NextWorkTitle': 'example next work item title', 'NextWorkTemplateKey': 'next work template key'}
+    }
+
+    incoming_work_type = work_item_details['WorkType']
+    next_work_title = dict_of_next_work[incoming_work_type]['next work title']
+    next_work_template_key = dict_of_next_work[incoming_work_type]['NextWorkTemplateKey']
+
+    data = {
+        "Title": next_work_title,
+        "ClientKey": work_item_details['ClientKey'],
+        "ClientType": work_item_details['ClientType'],
+        "StartDate": now,
+        "RelatedClientGroupKey": work_item_details['RelatedClientGroupKey'],
+        "WorkTemplateKey": next_work_template_key
+    }
+
+    try: # Try sending new work item to Karbon.
+        logging.info("Trying to send next work item to Karbon")
+        result = Entities(karbon_bearer_token,karbon_access_key).post('WorkItems',data)
+        logging.info(f"Successfully added work item. Response: {result}")
+    except Exception as e:
+        logging.error(f"Failed to add work item. Error: {e}")
+
+    note_subject = "FYI: Processed cascading work item."
+    note_body =f"""
+    <p><a href="https://app2.karbonhq.com/{karbon_tenant_key}#/work/{work_item_details['WorkItemKey']}">{work_item_details['Title']}</a> completed so I added 
+    <a href="https://app2.karbonhq.com/{karbon_tenant_key}#/work/{result['WOrkItemKey']}">{next_work_title}</a>.</p>
+    """
+    note_timelines = [
+        {
+        "EntityType": "WorkItem",
+        "EntityKey": work_item_details['WorkItemKey']
+        },
+        {
+        "EntityType": "WorkItem",
+        "EntityKey": result['WorkItemKey']
+        }
+    ]
+
+    try: # Try adding a note to each work timeline.
+        logging.info("Trying to add note to incoming and next work item timelines.")
+        result = Notes(karbon_bearer_token,karbon_access_key).add_note(note_subject,note_body,note_timelines)
+        logging.info(f"Successfully added note to karbon. Result: {result}")
+    except Exception as e:
+        logging.error(f"Failed to add note. Error: {e}")
+    
+def work_item_handler(data, karbon_bearer_token, karbon_access_key) -> None:
+    logging.info("Request to handle work item received.")
 
     # set values for next api call
     entity_key = data['ResourcePermaKey']
