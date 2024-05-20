@@ -63,11 +63,21 @@ async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Python HTTP trigger function received a request.")
 
     try:
+        # Log request details
+        logging.info('Trying to send to webhook_processor.')
+        logging.info(f"Request Headers: {req.headers}")
+        logging.info(f"Request Body: {req.get_body()}")
+
         # Start webhook processing asynchronously
-        logging.info("Trying to send to webhook_processor.")
         await webhook_processor(req)
+
+        # Return the response immediately and log the response details
         response = func.HttpResponse("Webhook accepted", status_code=202, headers={"Content-Type": "application/json"})
-        logging.info(f"Response to sender: {response}")
+        logging.info(f"Response Status Code: {response.status_code}")
+        logging.info(f"Response Headers: {response.headers}")
+        logging.info(f"Response Body: {response.get_body()}")
         return response
+
     except Exception as e:
-        logging.error(f"Failed to send message to webhook_processor with error: {e}")    
+        logging.error(f"Exception in MainWebhookHandler: {str(e)}")
+        return func.HttpResponse("Server error", status_code=500, headers={"Content-Type": "application/json"})
