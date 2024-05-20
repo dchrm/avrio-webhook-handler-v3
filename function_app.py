@@ -12,8 +12,6 @@ karbon_access_key = os.getenv('KARBON_ACCESS_KEY')
 karbon_bearer_token = os.getenv('KARBON_BEARER_TOKEN')
 azure_logic_app_handler_url = os.getenv('AZURE_LOGIC_APP_HANDLER')
 
-app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
-
 async def webhook_processor(req) -> None:
 
     # Log the request headers and body
@@ -56,9 +54,11 @@ async def webhook_processor(req) -> None:
         handler_function(req_body, karbon_bearer_token, karbon_access_key)
         logging.info(f"Main Handler - {resource_type} event processed successfully.")
     except Exception as e:
-        logging.error(f"Main Handler - Error processing the {resource_type} event: {str(e)}", exc_info=True)    
+        logging.error(f"Main Handler - Error processing the {resource_type} event: {str(e)}", exc_info=True)
 
-@app.route(route="MainWebhookHandler")
+
+app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
+@app.route(route="MainWebhookHandler", methods=['POST'])
 async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Python HTTP trigger function received a request.")
 
@@ -69,7 +69,7 @@ async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
         logging.info(f"Request Body: {req.get_body()}")
 
         # Start webhook processing asynchronously
-        await webhook_processor(req)
+        asyncio.create_task(webhook_processor(req))
 
         # Return the response immediately and log the response details
         response = func.HttpResponse("Webhook accepted", status_code=202, headers={"Content-Type": "application/json"})
