@@ -66,7 +66,7 @@ async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
     await webhook_processor(req)
 
     # Return the response immediately and log the response details
-    response = func.HttpResponse(status_code=202, headers={"Content-Type": "application/json"})
+    response = func.HttpResponse("Webhook accepted", status_code=202, headers={"Content-Type": "application/json"})
     logging.info(f"Response Status Code: {response.status_code}")
     logging.info(f"Response Headers: {response.headers}")
     return response
