@@ -34,7 +34,7 @@ def handle_null_work(work_item_details, karbon_bearer_token, karbon_access_key) 
     note_subject = "URGENT: This work item does not have a work type"
     note_body = f"""
     <p>{work_item_title} does not have a work type. Please update the work type.</p><br>
-    <p>Link: <a href='https://app2.karbonhq.com/{karbon_tennant_key}#/work/basic-details/{work_item_key}'>Work Item Details</a></p>
+    <p>Link: <a href='https://app2.karbonhq.com/{karbon_tenant_key}#/work/basic-details/{work_item_key}'>Work Item Details</a></p>
     """
 
     try:
