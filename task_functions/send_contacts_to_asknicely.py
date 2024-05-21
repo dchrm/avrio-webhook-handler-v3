@@ -12,18 +12,23 @@ def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, k
 
     logging.info('Received request to send contact information to AskNicely.')
 
+    # initialize apis
+    entities_api = Entities(karbon_bearer_token,karbon_access_key)
+    notes_api = Notes(karbon_bearer_token,karbon_access_key)
+
     client_key = work_item_details['ClientKey']
     client_type = work_item_details['ClientType']
     client_name = work_item_details['ClientName']
 
     # handle organziation-type clients.
-    logging.info(f"Checking client type and handling appropriately. Client: {client_name} | Client Type: {client_type} | Key: {client_key}")
+    logging.info(f"Checking client type and handling appropriately.")
+    logging.info(f"Client: {client_name} | Client Type: {client_type} | Key: {client_key}")
     if client_type == 'Organization':
         logging.info("Client is an org.")
         # get contacts associated with the work item's organizaiton
         params = {'$expand': 'Contacts'}
         logging.info(f"Requesting full org details from Karbon.")
-        organization_details = Entities(karbon_bearer_token,karbon_access_key).get_entity_by_key(client_key,client_type,params)
+        organization_details = entities_api.get_entity_by_key(client_key,client_type,params)
 
         # pull out contacts information.
         logging.info("Found contacts attached to Org.")
@@ -43,7 +48,7 @@ def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, k
             assignee = work_item_details['AssigneeEmailAddress']
 
             logging.info("Adding note to the client and work item timelines.")
-            Notes(karbon_bearer_token,karbon_access_key).add_note(note_subject,note_body,timelines,assignee)
+            notes_api.add_note(note_subject,note_body,timelines,assignee)
 
     elif client_type == 'Contact':
         logging.info("Client is a contact.")
@@ -63,7 +68,7 @@ def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, k
         contact_key = contact['ContactKey']
         contact_name = contact['FullName']
         logging.info(f"Request contact details for contact. Name: {contact_name} | Key: {contact_key}")
-        contact_details = Entities(karbon_bearer_token,karbon_access_key).get_entity_by_key(contact_key,'Contact',params)
+        contact_details = entities_api.get_entity_by_key(contact_key,'Contact',params)
 
         # build list for asknicely
         ## first name
@@ -101,24 +106,29 @@ def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, k
             # stopping the loop as no emails where found for this contact.
             break
 
-        # send survey survye trigger to asknicely
-        logging.info("Send request to AskNicely to trigger NPS survey.")
-        # AskNicelyAPI(asknicely_api_key).send_business_card(
-        #     first_name,last_name,email,
-        #     work_item_details['ClientName'],
-        #     work_item_details['ClientKey'],
-        #     work_item_details['ClientType'],
-        #     work_item_details['Title'],
-        #     work_item_details['WorkItemKey'],
-        #     work_item_details['WorkType']
-        # )
+        try: # send survey survye trigger to asknicely
+            logging.info("Trying to send contact info to AskNicely for NPS survey.")
+            result = AskNicelyAPI(asknicely_api_key).send_business_card(
+                first_name,last_name,email,
+                work_item_details['ClientName'],
+                work_item_details['ClientKey'],
+                work_item_details['ClientType'],
+                work_item_details['Title'],
+                work_item_details['WorkItemKey'],
+                work_item_details['WorkType']
+            )
+            logging.info(f"Success. Response: {str(result)}")
+        except Exception as e:
+            logging.error(f"Failed! Error: {str(e)}")
 
-        # add note to appropriate timelines about the NPS survey.
-        logging.info("Sending request to Karbon to add not to timelines.")
-        note_subject = "FYI: Sent NPS survey"
-        note_body = f"I sent an NPS survey to {contact_name} after we completed '{work_item_details['Title']}' for '{client_name}'."
-        Notes(karbon_bearer_token,karbon_access_key).add_note(note_subject,note_body,timelines)
-        logging.info("Added note in Karbon.")
+        try: # add note to appropriate timelines about the NPS survey.
+            logging.info("Trying to request Karbon to add not to timelines.")
+            note_subject = "FYI: Sent NPS survey"
+            note_body = f"I sent an NPS survey to {contact_name} after we completed '{work_item_details['Title']}' for '{client_name}'."
+            result = Notes(karbon_bearer_token,karbon_access_key).add_note(note_subject,note_body,timelines)
+            logging.info(f"Success! Response: {str(result)}")
+        except Exception as e:
+            logging.info(f"Failed! Error: {str(e)}")
 
 def get_email_from_business_cards(business_cards, client_key):
     primary_email = None
@@ -128,55 +138,61 @@ def get_email_from_business_cards(business_cards, client_key):
     for business_card in business_cards:
         # Extract emails from the current business card
         emails = business_card.get('EmailAddresses')
-        logging.info("Check if emails exist.")
+        logging.info("Found a business card. Checking if emails exist.")
         if not emails:
-            logging.info("No emails on business card.")
+            logging.info("No emails on this business card.")
             continue  # Skip if no emails
         
         # Check if the business card matches the organization key
-        logging.info("Pick up the email from the business card from the organization where the work happened.")
+        logging.info("Checking if this business card is related to the org where the work happened.")
         if business_card.get('OrganizationKey') == client_key:
+            logging.info("This business card is related to the org where the work happened.")
             email = emails[0]
-            logging.info(f"First email attached to organization business card: {email}")
+            logging.info(f"Found at least one email on this business card. Returning the first email: {email}")
             return email  # Return the first email if it matches the client key
         
         # Check if the card is primary; save the email to return later if no better match is found
-        logging.info("Pick up email address from primary card.")
+        logging.info("Checking if this business card is the primary card.")
         if business_card.get('IsPrimaryCard'):
+            logging.info("This is the primary business card.")
             primary_email = emails[0]
-            logging.info(f"Primary email address: {primary_email}")
+            logging.info(f"Found at least one primary email address: {primary_email}")
     
     # Return the primary email if no organization-specific email was found
     if primary_email:
-        logging.info("Returned primary email.")
+        logging.info(f"Returning primary email address: {primary_email}")
         return primary_email
 
     # As a last resort, return the first email found on any card
     logging.info("Couldn't find email address on primary or organization business card.")
+    logging.info("Checking to see if any emails exist on any other cards.")
     for business_card in business_cards:
+        logging.info("Found a card. Checking for an email address.")
         emails = business_card.get('EmailAddresses')
-        logging.info("Checking to see if any emails exist.")
         if emails:
+            logging.info("Found at least one email address.")
             email = emails[0]
-            logging.info(f"Return the first email: {email}")
+            logging.info(f"Returning the first email found: {email}")
             return email
         logging.info("Found no email addresses.")
         return None  # Return None if no emails are found at all
 
 def add_note_for_missing_contact_information(karbon_bearer_token,karbon_access_key,assignee_email,timelines,note_body) -> None:
-    logging.info("Asked to add note to Karbon.")
-
-    note_subject = "OH NO! Missing contact information"
-
+    logging.info("Received request to add note to Karbon.")
+    
     # Create a timezone-aware datetime object (using UTC as an example)
     utc_timezone = datetime.timezone.utc
     now = datetime.datetime.now(utc_timezone)
+    iso_formatted_date = now.isoformat() # formatting for iso to include the time zone.
 
-    # Formatting the datetime in ISO format, which includes the timezone
-    iso_formatted_date = now.isoformat()
+    note_subject = "OH NO! Missing contact information"
 
-    logging.info("Sending note to Karbon now.")
-    Notes(karbon_bearer_token,karbon_access_key).add_note(note_subject,note_body,timelines,assignee_email,iso_formatted_date,iso_formatted_date)
+    try: # try to send note to karbon.
+        logging.info("Trying to post note to Karbon.")
+        result = Notes(karbon_bearer_token,karbon_access_key).add_note(note_subject,note_body,timelines,assignee_email,iso_formatted_date,iso_formatted_date)
+        logging.info(f"Success! Response: {str(result)}")
+    except Exception as e: # log any exceptions.
+        logging.error(f"Failed! Error: {str(e)}")
 
 # use for testing
 if __name__ == "__main__":

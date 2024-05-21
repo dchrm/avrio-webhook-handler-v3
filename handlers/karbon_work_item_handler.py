@@ -1,25 +1,27 @@
 import datetime
 from datetime import timezone, timedelta
-from services.karbon_services import Entities, Notes
+from services.karbon_services import Entities, Notes, GhenXMLReader
 from task_functions.send_contacts_to_asknicely import get_contact_information_and_send_surveys_to_asknicely as nps
 import logging
 import os
+import re
+import xml.etree.ElementTree as ET
 # from dotenv import load_dotenv
 from utils.logging_config import setup_logging
 
 # apply logging config file
 setup_logging()
 try: # try getting Karbon Tenant Key from environment variables.
-    logging.info("Try to get the Karbon Tenant from environment variables.")
+    logging.info("Try to load the Karbon Tenant from environment variables. - karbon_work_item_handler")
     karbon_tenant_key = os.getenv('KARBON_TENANT_KEY')
-    logging.info("Successfully aquired Karbon Tenant Key from environtment variables.")
+    logging.info("Successfully aquired Karbon Tenant Key from environtment variables. - karbon_work_item_handler")
 except Exception as e: # log any errors.
     logging.error(f"Failed to get Karbon Tenant Key with error: {e}")
 
 now = datetime.datetime.now(timezone.utc)
 
 def handle_null_work(work_item_details, karbon_bearer_token, karbon_access_key) -> None:
-    logging.info("Request to handle null work type received.")
+    logging.info("Request to handle null work type received. - karbon_work_item_handler.handle_null_work")
 
     # set values from supplied data.
     work_item_title = work_item_details['Title']
@@ -38,11 +40,33 @@ def handle_null_work(work_item_details, karbon_bearer_token, karbon_access_key) 
     """
 
     try:
-        logging.info("Trying to send note to Karbon.")
+        logging.info("Trying to send note to Karbon. - karbon_work_item_handler.handle_null_work")
         result = Notes(karbon_bearer_token,karbon_access_key).add_note(note_subject,note_body,note_timelines,note_assignee,note_todo_datetime,note_due_datetime)
         logging.info(f"Successfully sent note to work item. Response: {result}")
     except Exception as e:
         logging.error(f"Failed to add note with error: {e}")
+
+# def handle_inserted_work(work_item_details, karbon_bearer_token, karbon_access_key) -> None:
+#     # check if xml exists in the description
+#     xml_pattern = r"<gehn>.*?</gehn>"
+#     match = re.search(xml_pattern, text, re.DOTALL)
+#     if match:
+#         xml_data = match.group()
+        
+#         cascaded_works = GhenXMLReader(xml_data).get_cascaded_works()
+#         for work in cascaded_works:
+#             title = work['title']
+#             template_key = work['template_key']
+#             trigger_status = work['trigger_status']
+
+#             Entities(karbon_bearer_token,karbon_access_key)
+
+#         # take some actions here...
+
+
+#     else:
+#         # add xml as text here...
+#         xml_template = "*** DO NOT TYPE BELOW THIS LINE ***\n***********************************************\n<Ghen>\n    <Flags>\n        <Flag name='cascade' value='false'/>\n        <!-- Additional flags can be added here -->\n    </Flags>\n    <Cascade_Settings>\n        <Next_Work key='example_key' title='example title'>\n        <!-- Additional work can be added here -->\n    </Cascade_Settings>\n</Ghen>"
 
 def handle_cascading_work(work_item_details, karbon_bearer_token, karbon_access_key) -> None:
     logging.info("Request to handle cascading work item received.")
@@ -91,9 +115,9 @@ def handle_cascading_work(work_item_details, karbon_bearer_token, karbon_access_
     try: # Try adding a note to each work timeline.
         logging.info("Trying to add note to incoming and next work item timelines.")
         result = Notes(karbon_bearer_token,karbon_access_key).add_note(note_subject,note_body,note_timelines)
-        logging.info(f"Successfully added note to karbon. Result: {result}")
+        logging.info(f"Successfully added note to karbon. Result: {str(result)}")
     except Exception as e:
-        logging.error(f"Failed to add note. Error: {e}")
+        logging.error(f"Failed to add note. Error: {str(e)}")
     
 def work_item_handler(data, karbon_bearer_token, karbon_access_key) -> None:
     logging.info("Request to handle work item received.")
@@ -126,7 +150,7 @@ def work_item_handler(data, karbon_bearer_token, karbon_access_key) -> None:
             # This avoids situations where work items are updated after they are completed.
             # Such situations will fail this test and won't be sent for NPS.
         logging.info('Check to see if work item was completed recently.')
-        if time_difference <= timedelta(hours=1):
+        if time_difference <= timedelta(seconds=90):
             # get asknicely api key
             try:
                 logging.info('Try to get AskNicely api key from environmental variables.')

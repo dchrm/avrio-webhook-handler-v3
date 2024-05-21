@@ -2,6 +2,7 @@ import requests
 import logging
 from requests.exceptions import HTTPError, RequestException
 from utils.logging_config import setup_logging
+import xml.etree.ElementTree as ET
 
 # apply logging config file
 setup_logging()
@@ -104,7 +105,21 @@ class Notes(APIRequestHandler):
             "Timelines": timelines
         }
         return self.post(endpoint, data)
-    
+
+class GhenXMLReader: # for use with xml stored in work description
+    def __init__(self, xml_data):
+        self.root = ET.fromstring(xml_data)
+
+    def get_cascaded_works(self):
+        return [
+            {
+                "title": work.get("title"),
+                "template_key": work.get("template_key"),
+                "trigger_status": work.get("trigger_status")
+            }
+            for work in self.root.findall("Cascaded_Work")
+        ]
+
 # check to see if a webhook is from karbon.
 def is_karbon_webhook(webhook_data):
     # Check if the necessary headers or body keys are present
@@ -120,3 +135,4 @@ def is_karbon_webhook(webhook_data):
     except KeyError:
         # If any key is missing, it's not a valid Karbon webhook
         return False
+

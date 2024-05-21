@@ -29,7 +29,7 @@ class AskNicelyAPI:
         Returns:
             Response object from the requests module.
         """
-        logging.info('Received request to send to AskNicely')
+        logging.info('Received request to send contact ifno to AskNicely for an NPS survey')
 
         headers = {
             'Content-Type': 'application/json',
@@ -40,8 +40,7 @@ class AskNicelyAPI:
             'firstname': first_name,
             'lastname': last_name,
             'addcontact': False,
-            'triggeremail': True, # remove after testing
-            'delayminutes': 0, # ask_nicely_minutes_delay,
+            'delayminutes': 1440, # ask_nicely_minutes_delay,
             'contact_name_c': contact_name,
             'contact_key_c': contact_key,
             'contact_type_c': contact_type,
@@ -51,7 +50,9 @@ class AskNicelyAPI:
         }
 
         try:
+            logging.info("Trying to POST contact information to AskNicely.")
             response = requests.post(self.base_url, params=params, headers=headers)
+            logging.info(f"Success! Response: {str(response.status_code)} | {str(response.text)}")
             if response.status_code == 201:
                 logging.info('Request sent to Ask Nicely successfully.')
             else:
@@ -62,32 +63,6 @@ class AskNicelyAPI:
 
         return response
 
-# Usage example:
+# Used for testing:
 if __name__ == "__main__":
-
-    # imports for test
     import os
-    from dotenv import load_dotenv
-
-    # Load the correct environmental variables
-    env = os.environ.get('ENVIRONMENT', 'test')
-    dotenv_path = f".env.{env}"
-    load_dotenv(dotenv_path=dotenv_path)
-
-    # get asknicely api key
-    asknicely_api_key = os.getenv('ASKNICELY_API_KEY')
-    api_key = os.getenv('ASKNICELY_API_KEY')
-    print(api_key)
-    ask_nicely = AskNicelyAPI(api_key)
-    response = ask_nicely.send_business_card(
-        first_name='John',
-        last_name='Doe',
-        email_address='m@dchr.me',
-        contact_name='Company XYZ',
-        contact_key='123abc',
-        contact_type='Organization',
-        work_item_name='Project Alpha',
-        work_item_key='456def',
-        work_type='Consulting'
-    )
-    print(response.status_code, response.json())
