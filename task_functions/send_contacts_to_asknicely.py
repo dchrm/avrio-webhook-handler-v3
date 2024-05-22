@@ -118,17 +118,22 @@ def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, k
                 work_item_details['WorkType']
             )
             logging.info(f"Success. Response: {str(result)}")
+            data = result.json()
+            survey_sent = data["result"][0]["survey_sent"]
         except Exception as e:
             logging.error(f"Failed! Error: {str(e)}")
 
-        try: # add note to appropriate timelines about the NPS survey.
-            logging.info("Trying to request Karbon to add not to timelines.")
-            note_subject = "FYI: Sent NPS survey"
-            note_body = f"I sent an NPS survey to {contact_name} after we completed '{work_item_details['Title']}' for '{client_name}'."
-            result = Notes(karbon_bearer_token,karbon_access_key).add_note(note_subject,note_body,timelines)
-            logging.info(f"Success! Response: {str(result)}")
-        except Exception as e:
-            logging.info(f"Failed! Error: {str(e)}")
+        if survey_sent == True: # check if the survey was sent.
+            try: # add note to appropriate timelines about the NPS survey.
+                logging.info("Trying to request Karbon to add not to timelines.")
+                note_subject = "FYI: Sent NPS survey"
+                note_body = f"I sent an NPS survey to {contact_name} after we completed '{work_item_details['Title']}' for '{client_name}'."
+                result = Notes(karbon_bearer_token,karbon_access_key).add_note(note_subject,note_body,timelines)
+                logging.info(f"Success! Response: {str(result)}")
+            except Exception as e:
+                logging.info(f"Failed! Error: {str(e)}")
+        else:
+            logging.info("Survey skipped due to rules.")
 
 def get_email_from_business_cards(business_cards, client_key):
     primary_email = None
