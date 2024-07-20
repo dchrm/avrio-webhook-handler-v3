@@ -3,40 +3,59 @@ from services.asknicely_services import AskNicelyAPI
 import datetime
 import logging
 from utils.logging_config import setup_logging
+import os
 
 # apply logging config file
 setup_logging()
 
 # get client details from work key 
 def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, karbon_access_key, work_item_details, asknicely_api_key):
-
     logging.info('Received request to send contact information to AskNicely.')
 
-    # initialize apis
-    entities_api = Entities(karbon_bearer_token,karbon_access_key)
-    notes_api = Notes(karbon_bearer_token,karbon_access_key)
+    
+    entities_api = Entities(karbon_bearer_token,karbon_access_key) # initialize entities api
+    notes_api = Notes(karbon_bearer_token,karbon_access_key) # initialize notes api
 
     client_key = work_item_details['ClientKey']
     client_type = work_item_details['ClientType']
     client_name = work_item_details['ClientName']
 
-    # handle organziation-type clients.
+    logging.info("Trying to load environment variables.")
+    try: # try to get the asknicely send delay from environment variables. if it's not present, assign a default value of 1 day.
+        minutes_delay = os.getenv('ASKNICELY_MINUTES_DELAY')
+        logging.info(f"Successfully set send delay to {str(minutes_delay)}")
+    except Exception as e:
+        logging.info("Failed to load AskNicely send delay.")
+        logging.info(f"Error: {str(e)}")
+        logging.info("Setting send dealy to 1440 minutes (one day)")
+        minutes_delay = 1440
+
+    try: # try to load the default note assignee from environment variables.
+        default_note_assignee = os.getenv('DEFAULT_NOTE_ASSIGNEE')
+        logging.info(f"Successfully set default note assignee to {str(default_note_assignee)}")
+    except Exception as e: # set default assignee as None. Notes will either not have an assignee, or you can test for an assignee and assign one if needed.
+        logging.info(f"Failed to get environment variables.")
+        logging.info(f"Error: {str(e)}")        
+        logging.info("Setting default note assignee to None.")
+        default_note_assignee = None
+
+    
     logging.info(f"Checking client type and handling appropriately.")
     logging.info(f"Client: {client_name} | Client Type: {client_type} | Key: {client_key}")
-    if client_type == 'Organization':
+    if client_type == 'Organization': # handle organziation-type clients.
         logging.info("Client is an org.")
-        # get contacts associated with the work item's organizaiton
-        params = {'$expand': 'Contacts'}
+        
         logging.info(f"Requesting full org details from Karbon.")
-        organization_details = entities_api.get_entity_by_key(client_key,client_type,params)
+        params = {'$expand': 'Contacts'}
+        organization_details = entities_api.get_entity_by_key(client_key,client_type,params) # get contacts associated with the work item's organizaiton
 
-        # pull out contacts information.
+        
         logging.info("Found contacts attached to Org.")
-        contacts = organization_details['Contacts']
+        contacts = organization_details['Contacts'] # pull out contacts information.
 
-        # Check to see if there are contacts associated. If not, add a note to Karbon.
+        
         logging.info("Checking for contacts information attached to the Org.")
-        if not contacts:
+        if not contacts: # Check to see if there are contacts associated. If not, add a note to Karbon.
             logging.info("Cannot find any contact information.")
             note_subject = 'OH NO! No people connected to this organization'
             note_body = f"I tried to send out some NPS surveys because we just finished up the {work_item_details['Title']} for {work_item_details['ClientName']}, but I couldn't find any people attached to this organization. Please take care of this right away so I can send out NPS surveys in the future."
@@ -45,7 +64,13 @@ def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, k
                 {'EntityType': work_item_details['ClientType'],'EntityKey': work_item_details['ClientKey']}
             ]
             
-            assignee = work_item_details['AssigneeEmailAddress']
+            if default_note_assignee:
+                assignee = default_note_assignee
+                logging.info(f"Set note assignee to {str(assignee)}")
+            else:
+                assignee = work_item_details['AssigneeEmailAddress']
+                logging.info(f"Set note assignee to {str(assignee)}")
+            
 
             logging.info("Adding note to the client and work item timelines.")
             notes_api.add_note(note_subject,note_body,timelines,assignee)
@@ -57,14 +82,12 @@ def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, k
     else:
         logging.info("Client is neither an org or a contact. Ending process.")
         return None
-    
-    
 
-    # cycle throhgh each contact to get their business cards
     logging.info("Cycling through to find names and email addresses for AskNicely.")
-    for contact in contacts:
+    for contact in contacts: # cycle throhgh each contact to get their business cards
+        
+
         params = {'$expand': 'BusinessCards'}
-        # get contact details for this contact.
         contact_key = contact['ContactKey']
         contact_name = contact['FullName']
         logging.info(f"Request contact details for contact. Name: {contact_name} | Key: {contact_key}")
@@ -73,14 +96,14 @@ def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, k
         # build list for asknicely
         ## first name
         logging.info("Checking for preferred name.")
-        if contact_details['PreferredName'] not in ("", None):
+        if contact_details['PreferredName'] not in ("", None): # check karbon for any value in the preferred name field.
             logging.info("Preferred name exists. Setting it as first name.")
-            first_name = contact_details['PreferredName']
+            first_name = contact_details['PreferredName'] # set the first name to the contact's preferred name if it exists.
         else:
             logging.info("No preferred name set. Setting 'FirstName' to 'fist_name'.")
-            first_name = contact_details['FirstName']
+            first_name = contact_details['FirstName'] # set the contacts first name to the first name in Karbon since a preferred name didn't exist.
         ## last name
-        last_name = contact_details['LastName']
+        last_name = contact_details['LastName'] # set the last name to the last name on the contact in karbon.
 
         # search business cards for an appropriate email address.
         business_cards = contact_details['BusinessCards']
@@ -101,7 +124,7 @@ def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, k
             note_body = f"I tried to send an NPS survey to {contact['FullName']} after we finished their {work_item_details['Title']}, but I cannot locate an email address. Pleaes take care of this right away so I can send out their NPS survey."
 
             logging.info("Adding note to appropriate timelines asking for updated contact information.")
-            assignee = work_item_details['AssigneeEmailAddress']
+            assignee = default_note_assignee
             add_note_for_missing_contact_information(karbon_bearer_token,karbon_access_key,assignee,timelines,note_body)
             # stopping the loop as no emails where found for this contact.
             break
@@ -115,7 +138,8 @@ def get_contact_information_and_send_surveys_to_asknicely(karbon_bearer_token, k
                 work_item_details['ClientType'],
                 work_item_details['Title'],
                 work_item_details['WorkItemKey'],
-                work_item_details['WorkType']
+                work_item_details['WorkType'],
+                minutes_delay
             )
             logging.info(f"Success. Response: {str(result)}")
             data = result.json()
@@ -139,21 +163,24 @@ def get_email_from_business_cards(business_cards, client_key):
     primary_email = None
 
     # Cycle through each business card once to find the right email
-    logging.info("Cycle through business cards to find email addresses.")
+    logging.info("Looking for email addresses on business cards.")
     for business_card in business_cards:
+        logging.info("Found a business card.")
         # Extract emails from the current business card
         emails = business_card.get('EmailAddresses')
-        logging.info("Found a business card. Checking if emails exist.")
-        if not emails:
-            logging.info("No emails on this business card.")
-            continue  # Skip if no emails
+        logging.info("Checking if emails exist.")
+        if emails:
+            logging.info("This business card has at least one email address.")
+        else:
+            logging.info("No emails on this business card. Skipping this business card.")
+            continue
         
         # Check if the business card matches the organization key
         logging.info("Checking if this business card is related to the org where the work happened.")
         if business_card.get('OrganizationKey') == client_key:
             logging.info("This business card is related to the org where the work happened.")
             email = emails[0]
-            logging.info(f"Found at least one email on this business card. Returning the first email: {email}")
+            logging.info(f"Returning the first email: {email}")
             return email  # Return the first email if it matches the client key
         
         # Check if the card is primary; save the email to return later if no better match is found
@@ -179,8 +206,9 @@ def get_email_from_business_cards(business_cards, client_key):
             email = emails[0]
             logging.info(f"Returning the first email found: {email}")
             return email
-        logging.info("Found no email addresses.")
-        return None  # Return None if no emails are found at all
+        
+    logging.info("Found no email addresses.")
+    return None  # Return None if no emails are found at all
 
 def add_note_for_missing_contact_information(karbon_bearer_token,karbon_access_key,assignee_email,timelines,note_body) -> None:
     logging.info("Received request to add note to Karbon.")

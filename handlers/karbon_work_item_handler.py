@@ -1,6 +1,6 @@
 import datetime
 from datetime import timezone, timedelta
-from services.karbon_services import Entities, Notes, GhenXMLReader
+from services.karbon_services import Entities, Notes
 from task_functions.send_contacts_to_asknicely import get_contact_information_and_send_surveys_to_asknicely as nps
 import logging
 import os
@@ -11,12 +11,40 @@ from utils.logging_config import setup_logging
 
 # apply logging config file
 setup_logging()
-try: # try getting Karbon Tenant Key from environment variables.
-    logging.info("Try to load the Karbon Tenant from environment variables. - karbon_work_item_handler")
-    karbon_tenant_key = os.getenv('KARBON_TENANT_KEY')
-    logging.info("Successfully aquired Karbon Tenant Key from environtment variables. - karbon_work_item_handler")
-except Exception as e: # log any errors.
-    logging.error(f"Failed to get Karbon Tenant Key with error: {e}")
+
+# add your environment varialbes here and associated descriptions. descriptions used for logging only.
+env_variables = [
+    {
+        'key': 'KARBON_TENANT_KEY',
+        'description': "Karbon tenant key"
+    },
+    {
+        'key': 'NPS_ELIGIBLE_WORK_TYPES',
+        'description': "work types targeting for NPS surveys"
+    },
+    {
+        'key': 'ASKNICELY_API_KEY',
+        'description': "AskNicely api key for sending NPS surveys"
+    }
+]
+
+# initialize the environment varialbes dictionary.
+environment_variables = {}
+
+# get environment varialbes
+for var in env_variables:
+    variable = var['key']
+    description = var['description']
+    try:
+        logging.info(f"Trying to load {variable} to get {description}.")
+        value = os.getenv(variable)
+        if value is not None:
+            environment_variables[variable] = value
+            logging.info(f"Success! Loaded {variable}.")
+        else:
+            logging.warning(f"{variable} not found in environment variables.")
+    except Exception as e:
+        logging.error(f"Failed to load {variable}. Error: {e}")
 
 now = datetime.datetime.now(timezone.utc)
 
@@ -36,7 +64,7 @@ def handle_null_work(work_item_details, karbon_bearer_token, karbon_access_key) 
     note_subject = "URGENT: This work item does not have a work type"
     note_body = f"""
     <p>{work_item_title} does not have a work type. Please update the work type.</p><br>
-    <p>Link: <a href='https://app2.karbonhq.com/{karbon_tenant_key}#/work/basic-details/{work_item_key}'>Work Item Details</a></p>
+    <p>Link: <a href='https://app2.karbonhq.com/{environment_variables['KARBON_TENANT_KEY']}#/work/basic-details/{work_item_key}'>Work Item Details</a></p>
     """
 
     try:
@@ -98,8 +126,8 @@ def handle_cascading_work(work_item_details, karbon_bearer_token, karbon_access_
 
     note_subject = "FYI: Processed cascading work item."
     note_body =f"""
-    <p><a href="https://app2.karbonhq.com/{karbon_tenant_key}#/work/{work_item_details['WorkItemKey']}">{work_item_details['Title']}</a> completed so I added 
-    <a href="https://app2.karbonhq.com/{karbon_tenant_key}#/work/{result['WOrkItemKey']}">{next_work_title}</a>.</p>
+    <p><a href="https://app2.karbonhq.com/{environment_variables['KARBON_TENANT_KEY']}#/work/{work_item_details['WorkItemKey']}">{work_item_details['Title']}</a> completed so I added 
+    <a href="https://app2.karbonhq.com/{environment_variables['KARBON_TENANT_KEY']}#/work/{result['WOrkItemKey']}">{next_work_title}</a>.</p>
     """
     note_timelines = [
         {
@@ -133,10 +161,8 @@ def work_item_handler(data, karbon_bearer_token, karbon_access_key) -> None:
     # Check if the work item is eligible for net promoter score (nps) and send it along if so.
     work_item_status = work_item_details['PrimaryStatus']
     work_item_type = work_item_details['WorkType']
-    eligible_work_types = [
-        # 'Tax: Processing',
-        'Internal'
-    ]
+    eligible_work_types = environment_variables['NPS_ELIGIBLE_WORK_TYPES']
+
     logging.info('Checking if work item is eligible for Net Promoter Score (NPS)')
     if work_item_status == 'Completed' and work_item_type in eligible_work_types:
         # Parse the CompletedDate to datetime object and set it to UTC timezone and compare to 
@@ -154,7 +180,7 @@ def work_item_handler(data, karbon_bearer_token, karbon_access_key) -> None:
             # get asknicely api key
             try:
                 logging.info('Try to get AskNicely api key from environmental variables.')
-                asknicely_api_key = os.getenv('ASKNICELY_API_KEY')
+                asknicely_api_key = environment_variables['ASKNICELY_API_KEY']
             except:
                 logging.error('Could not load AskNicely API key.')
 
@@ -166,8 +192,3 @@ def work_item_handler(data, karbon_bearer_token, karbon_access_key) -> None:
             logging.info(f"Not eligible for NPS because work item was completed {time_difference} hours ago. Must be within 1 hour.")
     else:
         logging.info(f"Work Item not eligible for NPS. Work Item status: {work_item_status}")
-
-# use for testing
-if __name__ == "__main__":
-    # imports for test
-    import os

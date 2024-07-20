@@ -2,7 +2,8 @@ import requests
 import logging
 from requests.exceptions import HTTPError, RequestException
 from utils.logging_config import setup_logging
-import xml.etree.ElementTree as ET
+from datetime import date
+from utils.config import BASE_URL, DEFAULT_AUTHOR_EMAIL
 
 # apply logging config file
 setup_logging()
@@ -10,12 +11,18 @@ setup_logging()
 class APIRequestHandler:
     """Base class for handling API requests to the Karbon API."""
     
-    def __init__(self, bearer_token, access_key, base_url='https://api.karbonhq.com/v3'):
+    def __init__(self, bearer_token: str, access_key: str, base_url: str = BASE_URL):
         self.bearer_token = bearer_token
         self.access_key = access_key
         self.base_url = base_url
 
-    def _send_request(self, method, endpoint, data=None, params=None):
+    def _send_request(
+            self, 
+            method: str, 
+            endpoint: str, 
+            data: dict | None = None, 
+            params: dict | None = None
+        ) -> dict:
         """Sends an HTTP request to the specified endpoint."""
         url = f"{self.base_url}/{endpoint}"
         headers = {
@@ -39,41 +46,49 @@ class APIRequestHandler:
             logging.error(f"Unhandled exception: {method} {url} - {e}")
             raise
 
-    def get(self, endpoint, params=None):
+    def get(self, endpoint: str, params: dict | None = None):
         """Sends a GET request."""
         return self._send_request('GET', endpoint, params=params)
 
-    def post(self, endpoint, data):
+    def post(self, endpoint: str, data: dict):
         """Sends a POST request."""
         return self._send_request('POST', endpoint, data=data)
 
-    def put(self, endpoint, data):
+    def put(self, endpoint: str, data: dict):
         """Sends a PUT request."""
         return self._send_request('PUT', endpoint, data=data)
 
-    def delete(self, endpoint):
+    def delete(self, endpoint: str):
         """Sends a DELETE request."""
         return self._send_request('DELETE', endpoint)
 
-    def patch(self, endpoint, data):
+    def patch(self, endpoint: str, data: dict):
         """Sends a PATCH request."""
         return self._send_request('PATCH', endpoint, data=data)
     
 class Entities(APIRequestHandler):
-    def __init__(self, bearer_token, access_key):
+    def __init__(self, bearer_token: str, access_key: str):
         super().__init__(bearer_token, access_key)
     
-    def get_entity_by_key(self, entitiy_key, entitiy_type,parameters=None):
+    def get_entity_by_key(self, entitiy_key: str, entitiy_type: str, parameters: dict | None = None) -> dict:
         """Gets a single entitiy using the entities's key. Optionally add parameters"""
         endpoint = f"{entitiy_type}s"
         endpoint = f"{endpoint}/{entitiy_key}"
         return self.get(endpoint,parameters)
 
 class Notes(APIRequestHandler):
-    def __init__(self, bearer_token, access_key):
+    def __init__(self, bearer_token: str, access_key: str):
         super().__init__(bearer_token, access_key)
 
-    def add_note(self, subject, body, timelines, assignee=None, todo_date=None, due_date=None):
+    def add_note(
+            self, 
+            subject: str, 
+            body: str, 
+            timelines: dict, 
+            assignee: str | None = None, 
+            todo_date: date | None = None, 
+            due_date: date | None = None
+        ) -> dict:
         """
         Adds a note with provided information to Karbon.
         EXAMPLE TIMELINES:
@@ -97,7 +112,7 @@ class Notes(APIRequestHandler):
         # build data
         data = {
             "AssigneeEmailAddress": assignee,
-            "AuthorEmailAddress": "karbonbot@avriopro.com",
+            "AuthorEmailAddress": DEFAULT_AUTHOR_EMAIL,
             "Subject": subject,
             "Body": body,
             "DueDate": due_date,
@@ -106,22 +121,8 @@ class Notes(APIRequestHandler):
         }
         return self.post(endpoint, data)
 
-class GhenXMLReader: # for use with xml stored in work description
-    def __init__(self, xml_data):
-        self.root = ET.fromstring(xml_data)
-
-    def get_cascaded_works(self):
-        return [
-            {
-                "title": work.get("title"),
-                "template_key": work.get("template_key"),
-                "trigger_status": work.get("trigger_status")
-            }
-            for work in self.root.findall("Cascaded_Work")
-        ]
-
 # check to see if a webhook is from karbon.
-def is_karbon_webhook(webhook_data):
+def is_karbon_webhook(webhook_data: dict) -> bool:
     # Check if the necessary headers or body keys are present
     try:
         # Check for specific body keys typical for Karbon
@@ -135,4 +136,3 @@ def is_karbon_webhook(webhook_data):
     except KeyError:
         # If any key is missing, it's not a valid Karbon webhook
         return False
-

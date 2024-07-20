@@ -11,7 +11,7 @@ class AskNicelyAPI:
         self.api_key = api_key
         self.base_url = 'https://avriosolutions.asknice.ly/api/v1/contact/trigger'
 
-    def send_business_card(self, first_name, last_name, email_address, client_name, client_key, client_type, work_item_name, work_item_key, work_type):
+    def send_business_card(self, first_name, last_name, email_address, client_name, client_key, client_type, work_item_name, work_item_key, work_type, minutes_delay):
         """
         Send business card information from Karbon to Ask Nicely via API to trigger an NPS survey.
 
@@ -39,9 +39,8 @@ class AskNicelyAPI:
             'email': email_address,
             'firstname': first_name,
             'lastname': last_name,
-            'addcontact': False,
             # 'triggeremail': True, # remove after testing
-            'delayminutes': 1440,
+            'delayminutes': minutes_delay,
             'client_name_c': client_name,
             'client_key_c': client_key,
             'client_type_c': client_type,
