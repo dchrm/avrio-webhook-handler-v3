@@ -9,16 +9,16 @@ import asyncio
 
 async def webhook_processor(req) -> None:
 
-    logging.info("Received a request to handle a webhook. - webhook_processor")
+    logging.info("function_app.py: Received a request to handle a webhook.")
 
     try:
-        logging.info("Trying to load access keys and other environment variables. - webhook_processor")
+        logging.info("function_app.py: Trying to load access keys and other environment variables.")
         # Get API keys and other environment variables
         karbon_access_key = os.getenv('KARBON_ACCESS_KEY')
         karbon_bearer_token = os.getenv('KARBON_BEARER_TOKEN')
         azure_logic_app_handler_url = os.getenv('AZURE_LOGIC_APP_HANDLER')
     except Exception as e:
-        logging.error(f"Failed to load environment variables with error: {str(e)}")
+        logging.error(f"function_app.py: Failed to load environment variables with error: {str(e)}")
         return
 
 
@@ -28,21 +28,21 @@ async def webhook_processor(req) -> None:
 
     # Parse the request body safely
     try:
-        logging.info("Trying to get JSON body of request. - webhook_processor")
+        logging.info("function_app.py: Trying to get JSON body of request.")
         req_body = req.get_json()
-        logging.info(f"Parsed Request Body: {req_body}")
+        logging.info(f"function_app.py: Parsed Request Body: {req_body}")
     except ValueError:
-        logging.error("Invalid JSON received. - webhook_processor")
+        logging.error("function_app.py: Invalid JSON received.")
     
     # Process the webhook if it's valid for Karbon
-    logging.info("Checking to see if webhook is from Karbon. - webhook_processor")
+    logging.info("function_app.py: Checking to see if webhook is from Karbon.")
     if is_karbon_webhook(req_body):
-        logging.info("Webhook appears to be from Karbon. - webhook_processor")
+        logging.info("function_app.py: Webhook appears to be from Karbon.")
     else:
-        logging.info("Request did not qualify as a Karbon webhook. - webhook_processor")
+        logging.info("function_app.py: Request did not qualify as a Karbon webhook.")
 
     resource_type = req_body.get('ResourceType')
-    logging.info(f"Handling {resource_type} event. - webhook_processor")
+    logging.info(f"function_app.py: Handling {resource_type} event.")
 
     # Mapping of Karbon resource types to handler functions
     karbon_event_handlers = {
@@ -52,27 +52,27 @@ async def webhook_processor(req) -> None:
     }
 
     if resource_type not in karbon_event_handlers:
-        logging.warning(f"Received unhandled event type: {resource_type} - webhook_processor")
+        logging.warning(f"function_app.py: Received unhandled event type: {resource_type}")
         return
 
     # Execute the handler function associated with the resource type
     try:
-        logging.info("Trying to send webhook to associated sub-handler. - webhook_processor")
+        logging.info("function_app.py: Trying to send webhook to associated sub-handler.")
         handler_function = karbon_event_handlers[resource_type]
         handler_function(req_body, karbon_bearer_token, karbon_access_key)
-        logging.info(f"{resource_type} event processed successfully. - webhook_processor")
+        logging.info(f"function_app.py: {resource_type} event processed successfully.")
     except Exception as e:
-        logging.error(f"Error processing the {resource_type} event: {str(e)}", exc_info=True)
+        logging.error(f"function_app.py: Error processing the {resource_type} event: {str(e)}", exc_info=True)
 
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 @app.route(route="MainWebhookHandler", methods=['POST'])
 async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info("Received a request. - MainWebhookHandler")
+    logging.info("function_app.py: Received a request.")
 
     try:
         # Log request details
-        logging.info('Trying to send webhook to webhook_processor. - MainWebhookHandler')
+        logging.info('function_app.py: Trying to send webhook to webhook_processor.')
         logging.info(f"Request Headers: {req.headers}")
         logging.info(f"Request Body: {req.get_body()}")
 
@@ -81,7 +81,7 @@ async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
         await webhook_processor(req)
 
         # Return the response immediately and log the response details
-        logging.info("Returning response to webhook sender. - MainWebhookHandler")
+        logging.info("function_app.py: Returning response to webhook sender.")
         response = func.HttpResponse("Webhook accepted", status_code=202, headers={"Content-Type": "application/json"})
         logging.info(f"Response Status Code: {response.status_code}")
         logging.info(f"Response Headers: {response.headers}")
@@ -89,10 +89,10 @@ async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
         return response
 
     except Exception as e:
-        logging.error(f"Exception in MainWebhookHandler: {str(e)}")
-        logging.info("Returning response to webhook sender. - MainWebhookHandler")
+        logging.error(f"function_app.py: Exception in MainWebhookHandler: {str(e)}")
+        logging.info("function_app.py: Returning response to webhook sender.")
         response = func.HttpResponse("Server error", status_code=500, headers={"Content-Type": "application/json"})
-        logging.info(f"Response Status Code: {response.status_code}")
-        logging.info(f"Response Headers: {response.headers}")
-        logging.info(f"Response Body: {response.get_body()}")
+        logging.info(f"function_app.py: Response Status Code: {response.status_code}")
+        logging.info(f"function_app.py: Response Headers: {response.headers}")
+        logging.info(f"function_app.py: Response Body: {response.get_body()}")
         return response

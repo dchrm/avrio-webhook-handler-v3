@@ -1,4 +1,5 @@
 import requests
+import time
 import logging
 from requests.exceptions import HTTPError, RequestException
 from utils.logging_config import setup_logging
@@ -15,7 +16,7 @@ class APIRequestHandler:
         self.access_key = access_key
         self.base_url = base_url
 
-    def _send_request(self, method, endpoint, data=None, params=None):
+    def _send_request(self, method, endpoint, data=None, params=None, max_retries=10):
         """Sends an HTTP request to the specified endpoint."""
         url = f"{self.base_url}/{endpoint}"
         headers = {
@@ -24,20 +25,34 @@ class APIRequestHandler:
             'AccessKey': self.access_key
         }
         
-        try:
-            response = requests.request(method, url, headers=headers, json=data, params=params)
-            response.raise_for_status()  # Raises an HTTPError for bad responses
-            logging.info(f"Request successful: {method} {url}")
-            return response.json()  # Returns JSON response
-        except HTTPError as e:
-            logging.error(f"HTTP error: {method} {url} - {e.response.status_code} {e.response.text}")
-            raise
-        except RequestException as e:
-            logging.error(f"Request exception: {method} {url} - {e}")
-            raise
-        except Exception as e:
-            logging.error(f"Unhandled exception: {method} {url} - {e}")
-            raise
+        retries = 0
+        while retries < max_retries:
+            try:
+                response = requests.request(method, url, headers=headers, json=data, params=params)
+                response.raise_for_status()  # Raises an HTTPError for bad responses
+                logging.info(f"Request successful: {method} {url}")
+                return response.json()  # Returns JSON response
+            except HTTPError as e:
+                if e.response.status_code == 429:
+                    try_after = e.response.headers.get('Retry-After')
+                    if try_after:
+                        logging.warning(f"Rate limit exceeded: {method} {url} - 429 Too Many Requests. Retry after {try_after} seconds.")
+                        time.sleep(int(try_after))
+                    else:
+                        logging.warning(f"Rate limit exceeded: {method} {url} - 429 Too Many Requests. No Retry-After header provided. Retrying in 1 second.")
+                        time.sleep(1)
+                    retries += 1
+                else:
+                    logging.error(f"HTTP error: {method} {url} - {e.response.status_code} {e.response.text}")
+                    raise
+            except RequestException as e:
+                logging.error(f"Request exception: {method} {url} - {e}")
+                raise
+            except Exception as e:
+                logging.error(f"Unhandled exception: {method} {url} - {e}")
+                raise
+        logging.error(f"Max retries exceeded for: {method} {url}")
+        raise HTTPError(f"Max retries exceeded for: {method} {url}")
 
     def get(self, endpoint, params=None):
         """Sends a GET request."""
