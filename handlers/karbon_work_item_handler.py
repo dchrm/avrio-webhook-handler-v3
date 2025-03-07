@@ -1,13 +1,13 @@
 import datetime
 from datetime import timezone, timedelta
-from services.karbon_services import Entities, Notes, GhenXMLReader
-from task_functions.send_contacts_to_asknicely import get_contact_information_and_send_surveys_to_asknicely as nps
+from shared.services.karbon_services import Entities, Notes, GhenXMLReader
+from shared.task_functions.send_contacts_to_asknicely import get_contact_information_and_send_surveys_to_asknicely as nps
 import logging
 import os
 import re
 import xml.etree.ElementTree as ET
 # from dotenv import load_dotenv
-from utils.logging_config import setup_logging
+from shared.utils.logging_config import setup_logging
 
 # apply logging config file
 setup_logging()

@@ -4,9 +4,11 @@ import os
 from handlers.karbon_work_item_handler import work_item_handler
 from handlers.karbon_notes_handler import notes_handler
 from handlers.karbon_contacts_handler import contacts_handler
-from services.karbon_services import is_karbon_webhook
+from shared.services.karbon_services import is_karbon_webhook
+from shared.task_functions.auto_add_template_work_items import add_work_to_karbon_user as auto_work
 import asyncio
 
+# Karbon webhook handler
 async def webhook_processor(req) -> None:
 
     logging.info("function_app.py: Received a request to handle a webhook.")
@@ -64,7 +66,7 @@ async def webhook_processor(req) -> None:
     except Exception as e:
         logging.error(f"function_app.py: Error processing the {resource_type} event: {str(e)}", exc_info=True)
 
-
+# Scheduled morning automations
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 @app.route(route="MainWebhookHandler", methods=['POST'])
 async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
@@ -96,3 +98,15 @@ async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
         logging.info(f"function_app.py: Response Headers: {response.headers}")
         logging.info(f"function_app.py: Response Body: {response.get_body()}")
         return response
+    
+@app.schedule(schedule="0 0 9 * * *")
+def scheduled_job(timer: func.TimerRequest) -> None:
+    """Run the scheduled job every day at 4:00 AM Eastern Time."""
+    logging.info("function_app.py: Scheduled job triggered.")
+    logging.info(f"function_app.py: Scheduled job ran at: {timer.past_due_time}")
+    logging.info(f"function_app.py: Scheduled job is due at: {timer.next}")
+    logging.info("function_app.py: Running scheduled job.")
+    # Run the scheduled job here
+    auto_work()
+
+    logging.info("function_app.py: Scheduled job completed successfully.")
