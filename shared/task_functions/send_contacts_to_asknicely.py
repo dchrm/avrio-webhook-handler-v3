@@ -1,8 +1,8 @@
-from services.karbon_services import Notes, Entities
-from services.asknicely_services import AskNicelyAPI
+from shared.services.karbon_services import Notes, Entities
+from shared.services.asknicely_services import AskNicelyAPI
 import datetime
 import logging
-from utils.logging_config import setup_logging
+from shared.utils.logging_config import setup_logging
 
 # apply logging config file
 setup_logging()

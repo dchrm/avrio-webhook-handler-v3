@@ -1,7 +1,7 @@
 import requests
 import logging
-from utils.logging_config import setup_logging
-from utils.config import ask_nicely_minutes_delay
+from shared.utils.logging_config import setup_logging
+from shared.utils.config import ask_nicely_minutes_delay
 
 # apply logging config file
 setup_logging()

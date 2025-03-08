@@ -2,7 +2,7 @@ import datetime
 from datetime import timezone, timedelta
 from shared.services.karbon_services import Entities, Notes
 from shared.task_functions.send_contacts_to_asknicely import get_contact_information_and_send_surveys_to_asknicely as nps
-from shared.task_functions.auto_add_template_work_items import main as cascade_work
+from shared.task_functions.cascade_work import main as cascade_work
 import logging
 import os
 import re
