@@ -1,20 +1,15 @@
+# example of how to use the function
+from shared.task_functions.cascade_work import main as func
+import json
+from shared.services.karbon_services import Entities
 import logging
-from handlers.karbon_work_item_handler import handle_null_work, environment_variables
+import os
+from dotenv import load_dotenv
 
-# Set up logging to print to console
-logging.basicConfig(level=logging.INFO)
+load_dotenv()
 
-# Mock data to simulate a work item detail
-work_item_details = {
-    'Title': 'Sample Work Item',
-    'WorkItemKey': 'sample_key',
-    'AssigneeEmailAddress': 'assignee@example.com'
-}
-karbon_bearer_token = "sample_token"
-karbon_access_key = "sample_access_key"
+test_work_item_key = "4rwWDy3GbvXr"
 
-# Call the function to handle null work
-handle_null_work(work_item_details, karbon_bearer_token, karbon_access_key)
+test_data = Entities(os.environ['KARBON_BEARER_TOKEN'], os.environ['KARBON_ACCESS_KEY']).get(f"WorkItems/{test_work_item_key}")
 
-# Print out the loaded environment variables to verify
-print(environment_variables)
+func(test_data)

@@ -99,14 +99,14 @@ async def MainWebhookHandler(req: func.HttpRequest) -> func.HttpResponse:
         logging.info(f"function_app.py: Response Body: {response.get_body()}")
         return response
     
-@app.schedule(schedule="0 0 9 * * *")
-def scheduled_job(timer: func.TimerRequest) -> None:
-    """Run the scheduled job every day at 4:00 AM Eastern Time."""
-    logging.info("function_app.py: Scheduled job triggered.")
-    logging.info(f"function_app.py: Scheduled job ran at: {timer.past_due_time}")
-    logging.info(f"function_app.py: Scheduled job is due at: {timer.next}")
-    logging.info("function_app.py: Running scheduled job.")
-    # Run the scheduled job here
-    auto_work()
+# @app.schedule(schedule="0 0 9 * * *")
+# def scheduled_job(timer: func.TimerRequest) -> None:
+#     """Run the scheduled job every day at 4:00 AM Eastern Time."""
+#     logging.info("function_app.py: Scheduled job triggered.")
+#     logging.info(f"function_app.py: Scheduled job ran at: {timer.past_due_time}")
+#     logging.info(f"function_app.py: Scheduled job is due at: {timer.next}")
+#     logging.info("function_app.py: Running scheduled job.")
+#     # Run the scheduled job here
+#     auto_work()
 
-    logging.info("function_app.py: Scheduled job completed successfully.")
+#     logging.info("function_app.py: Scheduled job completed successfully.")

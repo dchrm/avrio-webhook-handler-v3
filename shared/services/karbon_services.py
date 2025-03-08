@@ -2,8 +2,10 @@ import requests
 import time
 import logging
 from requests.exceptions import HTTPError, RequestException
-from utils.logging_config import setup_logging
+from ..utils.logging_config import setup_logging
 import xml.etree.ElementTree as ET
+import json
+import re
 
 # apply logging config file
 setup_logging()
@@ -31,7 +33,11 @@ class APIRequestHandler:
                 response = requests.request(method, url, headers=headers, json=data, params=params)
                 response.raise_for_status()  # Raises an HTTPError for bad responses
                 logging.info(f"Request successful: {method} {url}")
-                return response.json()  # Returns JSON response
+                logging.info("Trying to return response.json()")
+                try :
+                    return response.json()
+                except :
+                    return response.text
             except HTTPError as e:
                 if e.response.status_code == 429:
                     try_after = e.response.headers.get('Retry-After')
@@ -78,11 +84,35 @@ class Entities(APIRequestHandler):
     def __init__(self, bearer_token, access_key):
         super().__init__(bearer_token, access_key)
     
-    def get_entity_by_key(self, entitiy_key, entitiy_type,parameters=None):
-        """Gets a single entitiy using the entities's key. Optionally add parameters"""
+    def get_entity_by_key(self, entitiy_key, entitiy_type, parameters=None):
+        """Gets a single entity using the entity's key. Optionally add parameters"""
         endpoint = f"{entitiy_type}s"
         endpoint = f"{endpoint}/{entitiy_key}"
-        return self.get(endpoint,parameters)
+        return self.get(endpoint, parameters)
+
+    def extract_json_from_description(self, description):
+        """
+        Extracts JSON content from the description field of a work item.
+        The JSON content is enclosed within [JSON][/JSON] tags.
+        
+        Args:
+            description (str): The description field containing JSON data.
+        
+        Returns:
+            dict: The extracted JSON content as a dictionary.
+        """
+        try:
+            # Use regular expression to find JSON content between [JSON] and [/JSON] tags
+            match = re.search(r'\[JSON\](.*?)\[/JSON\]', description, re.DOTALL)
+            if match:
+                json_content = match.group(1)
+                return json.loads(json_content)
+            else:
+                logging.warning("No JSON content found in the description.")
+                return None
+        except json.JSONDecodeError as e:
+            logging.error(f"Error decoding JSON content: {e}")
+            return None
 
 class Notes(APIRequestHandler):
     def __init__(self, bearer_token, access_key):
